@@ -79,3 +79,26 @@ ORDER BY user_id, order_id
 LIMIT 1000 ;
 
 ----------------------------------------------------------------------------------------
+Посчитайте, сколько в среднем товаров заказывает каждый пользователь. 
+Выведите id пользователя и среднее количество товаров в заказе. 
+Среднее значение округлите до двух знаков после запятой. 
+Колонку посчитанными значениями назовите avg_order_size. 
+Результат выполнения запроса отсортируйте по возрастанию id пользователя. 
+Добавьте в запрос оператор LIMIT и выведите только первые 1000 строк результирующей таблицы.
+Поля в результирующей таблице: user_id, avg_order_size
+
+WITH t3 AS(
+   SELECT order_id
+   FROM   user_actions
+   WHERE  action = 'cancel_order'
+)
+SELECT t1.user_id, ROUND(AVG(ARRAY_LENGTH(product_ids, 1)), 2) AS avg_order_size
+FROM   user_actions t1
+    LEFT JOIN orders t2 
+    USING(order_id)
+WHERE  t1.order_id not in (SELECT * FROM   t3)
+GROUP BY t1.user_id
+ORDER BY user_id
+LIMIT 1000 ;
+
+----------------------------------------------------------------------------------------
