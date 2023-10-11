@@ -232,3 +232,29 @@ ORDER BY times_purchased DESC
 LIMIT 10 ;
 
 ----------------------------------------------------------------------------------------
+Посчитайте среднее значение cancel_rate для каждого пола, округлив его до трёх знаков после запятой. 
+Колонку с посчитанным средним значением назовите avg_cancel_rate.
+Помните про отсутствие информации о поле некоторых пользователей после join, так как не все пользователи из таблицы user_action есть в таблице users. 
+Для этой группы тоже посчитайте cancel_rate и в результирующей таблице для пустого значения в колонке с полом укажите ‘unknown’ (без кавычек).
+Результат отсортируйте по колонке с полом пользователя по возрастанию.
+Поля в результирующей таблице: sex, avg_cancel_rate
+
+WITH ct1 AS(
+SELECT user_id,
+       (count(action) filter (WHERE action = 'cancel_order'))::decimal(10,3) / count(action) filter (WHERE action = 'create_order') AS cancel_rate
+FROM   user_actions
+GROUP BY user_id 
+),
+ct2 AS(
+SELECT user_id, cancel_rate, sex
+FROM ct1 t1
+LEFT JOIN users
+USING(user_id)
+)
+SELECT COALESCE(sex, 'unknown') AS sex, ROUND(AVG(cancel_rate), 3) AS avg_cancel_rate
+FROM ct2
+GROUP BY sex
+ORDER BY sex ;
+
+----------------------------------------------------------------------------------------
+
