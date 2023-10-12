@@ -257,4 +257,19 @@ GROUP BY sex
 ORDER BY sex ;
 
 ----------------------------------------------------------------------------------------
+По таблицам orders и courier_actions определите id десяти заказов, которые доставляли дольше всего.
+Поле в результирующей таблице: order_id
 
+WITH ct1 AS(
+SELECT order_id, (time - creation_time) AS delivery_time
+FROM orders t1
+LEFT JOIN courier_actions t2
+USING(order_id)
+WHERE action = 'deliver_order'
+ORDER BY delivery_time DESC
+LIMIT 10
+)
+SELECT order_id
+FROM ct1 ;
+
+----------------------------------------------------------------------------------------
