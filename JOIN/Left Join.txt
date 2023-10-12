@@ -273,3 +273,32 @@ SELECT order_id
 FROM ct1 ;
 
 ----------------------------------------------------------------------------------------
+Выясните, кто заказывал и доставлял самые большие заказы. Самыми большими считайте заказы с наибольшим числом товаров.
+Выведите id заказа, id пользователя и id курьера. Также в отдельных колонках укажите возраст пользователя и возраст курьера. 
+Возраст измерьте числом полных лет. Считайте его относительно последней даты в таблице user_actions — как для пользователей, так и для курьеров. 
+Колонки с возрастом назовите user_age и courier_age. Результат отсортируйте по возрастанию id заказа.
+Поля в результирующей таблице: order_id, user_id, user_age, courier_id, courier_age
+
+WITH ct1 AS(
+SELECT order_id
+FROM orders
+WHERE ARRAY_LENGTH(product_ids, 1) = (SELECT MAX(ARRAY_LENGTH(product_ids, 1)) FROM orders)
+),
+ct2 AS(
+SELECT MAX(time)
+FROM user_actions
+)
+SELECT order_id, user_id, DATE_PART('year', AGE((SELECT * FROM ct2), users.birth_date))::INTEGER AS user_age, courier_id, DATE_PART('year', AGE((SELECT * FROM ct2), couriers.birth_date))::INTEGER AS courier_age
+FROM ct1
+LEFT JOIN user_actions
+USING(order_id)
+LEFT JOIN users
+USING(user_id)
+LEFT JOIN courier_actions
+USING(order_id)
+LEFT JOIN couriers
+USING(courier_id)
+WHERE courier_actions.action = 'deliver_order'
+ORDER BY order_id ;
+
+----------------------------------------------------------------------------------------
