@@ -91,3 +91,30 @@ FROM user_actions
 WHERE order_id NOT IN (SELECT order_id From user_actions WHERE action = 'cancel_order')
 ORDER BY user_id, order_number
 LIMIT 1000 ;
+
+---------------------------------------------------------------------------------------------------------
+Для каждого пользователя рассчитайте, сколько в среднем времени проходит между его заказами. 
+Посчитайте этот показатель только для тех пользователей, которые за всё время оформили более одного неотмененного заказа.
+Среднее время между заказами выразите в часах, округлив значения до целого числа. 
+Колонку со средним значением времени назовите hours_between_orders. 
+Результат отсортируйте по возрастанию id пользователя.
+Добавьте в запрос оператор LIMIT и включите в результат только первые 1000 записей.
+Поля в результирующей таблице: user_id, hours_between_orders
+В результате всех расчётов для каждого пользователя с более чем одним заказом у вас должно получиться целое число часов, 
+которое в среднем проходит между его заказами.
+
+WITH ct1 AS(
+SELECT user_id,
+       time - (LAG(time) OVER(PARTITION BY user_id ORDER BY time)) AS time_diff,
+       COUNT(user_id) OVER(PARTITION BY user_id) AS total_orders
+FROM   user_actions
+WHERE  order_id not in (SELECT order_id
+                        FROM   user_actions
+                        WHERE  action = 'cancel_order')
+)
+SELECT user_id, ROUND(AVG(EXTRACT(epoch from time_diff))/3600)::INTEGER AS hours_between_orders
+FROM ct1
+WHERE total_orders > 1
+GROUP BY user_id
+ORDER BY user_id 
+LIMIT 1000 ;
