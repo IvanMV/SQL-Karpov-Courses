@@ -37,4 +37,5 @@ FULL JOIN couriers
 USING(date)
 ORDER BY date
 
+REDASH: http://redash.public.karpov.courses/public/dashboards/uFWV3qEplm2WNclt1etqNgLs13RoTnu7HCdWdemt?org_slug=default
 -----------------------------------------------------------------------------------------------------------------------------------
