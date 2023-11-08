@@ -1,3 +1,7 @@
+REDASH: http://redash.public.karpov.courses/public/dashboards/uFWV3qEplm2WNclt1etqNgLs13RoTnu7HCdWdemt?org_slug=default
+-----------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------
+-----------------------------------------------------------------------------------------------------------------------------------
 Для каждого дня, представленного в таблицах user_actions и courier_actions, рассчитайте следующие показатели:
 	Число новых пользователей.
 	Число новых курьеров.
@@ -37,7 +41,6 @@ FULL JOIN couriers
 USING(date)
 ORDER BY date
 
-REDASH: http://redash.public.karpov.courses/public/dashboards/uFWV3qEplm2WNclt1etqNgLs13RoTnu7HCdWdemt?org_slug=default
 -----------------------------------------------------------------------------------------------------------------------------------
 WITH users AS(
 SELECT date, COUNT(user_id) AS new_users
@@ -112,3 +115,68 @@ GROUP BY date, total
 ORDER BY date
 
 -----------------------------------------------------------------------------------------------------------------------------------
+Для каждого дня, представленного в таблице user_actions, рассчитайте следующие показатели:
+
+Общее число заказов.
+Число первых заказов (заказов, сделанных пользователями впервые).
+Число заказов новых пользователей (заказов, сделанных пользователями в тот же день, когда они впервые воспользовались сервисом).
+Долю первых заказов в общем числе заказов (долю п.2 в п.1).
+Долю заказов новых пользователей в общем числе заказов (долю п.3 в п.1).
+Колонки с показателями назовите соответственно orders, first_orders, new_users_orders, first_orders_share, new_users_orders_share. 
+Колонку с датами назовите date. Проследите за тем, чтобы во всех случаях количество заказов было выражено целым числом. 
+Все показатели с долями необходимо выразить в процентах. При расчёте долей округляйте значения до двух знаков после запятой.
+
+Результат должен быть отсортирован по возрастанию даты.
+
+Поля в результирующей таблице: date, orders, first_orders, new_users_orders, first_orders_share, new_users_orders_share
+
+Пояснение: 
+
+При расчёте числа первых заказов учитывайте, что у каждого пользователя может быть всего один первый заказ (что вполне логично).
+При расчёте числа заказов новых пользователей учитывайте, что в свой первый день каждый новый пользователь мог как совершить сразу несколько заказов, так и не совершить ни одного.
+Во всех случаях при расчёте числа заказов учитывайте только фактически совершённые заказы, отменённые заказы не учитывайте.
+
+WITH new_orders AS(
+SELECT COUNT(user_id) AS first_orders, date
+FROM (
+    SELECT user_id, MIN(DATE(time)) AS date
+    FROM user_actions
+    WHERE order_id NOT IN (SELECT order_id FROM user_actions WHERE action = 'cancel_order')
+    GROUP BY user_id
+    ) t1
+GROUP BY date
+),
+total_orders AS(
+SELECT DATE(time) AS date, COUNT(order_id) AS orders
+FROM user_actions 
+WHERE order_id NOT IN (SELECT order_id FROM user_actions WHERE action = 'cancel_order')
+GROUP BY date
+ORDER BY date
+),
+new_users AS(
+SELECT date, COUNT(order_id) AS new_users_orders
+FROM (
+    SELECT t2.date, t3.order_id
+    FROM (
+        SELECT user_id, MIN(DATE(time)) AS date
+        FROM user_actions
+        GROUP BY user_id
+        ORDER BY user_id
+        ) t2
+    LEFT JOIN 
+        (
+        SELECT user_id, order_id, DATE(time) AS date 
+        FROM user_actions
+        WHERE action = 'create_order' AND order_id NOT IN (SELECT order_id FROM user_actions WHERE action = 'cancel_order')
+        ) t3
+    ON t2.user_id = t3.user_id AND t2.date = t3.date
+    
+    ORDER BY date
+    ) t4
+GROUP BY date
+)
+SELECT date, orders, first_orders, new_users_orders, ROUND((first_orders::DECIMAL / orders * 100), 2) AS first_orders_share, ROUND((new_users_orders::DECIMAL / orders * 100), 2) AS new_users_orders_share
+FROM new_orders 
+LEFT JOIN total_orders USING(date)
+LEFT JOIN new_users USING(date)
+
