@@ -39,3 +39,76 @@ ORDER BY date
 
 REDASH: http://redash.public.karpov.courses/public/dashboards/uFWV3qEplm2WNclt1etqNgLs13RoTnu7HCdWdemt?org_slug=default
 -----------------------------------------------------------------------------------------------------------------------------------
+WITH users AS(
+SELECT date, COUNT(user_id) AS new_users
+FROM (
+    SELECT user_id, DATE(MIN(time)) AS date
+    FROM user_actions
+    GROUP BY user_id
+    ) t1
+GROUP BY date
+),
+couriers AS(
+SELECT date, COUNT(courier_id) AS new_couriers
+FROM (
+    SELECT courier_id, DATE(MIN(time)) AS date
+    FROM courier_actions
+    GROUP BY courier_id
+    ) t2
+GROUP BY date
+),
+ct1 AS(
+SELECT 
+date, 
+    new_users, 
+    new_couriers, 
+    (SUM(new_users) OVER(ORDER BY date))::INTEGER AS total_users, 
+    (SUM(new_couriers) OVER(ORDER BY date))::INTEGER AS total_couriers
+FROM users
+FULL JOIN couriers
+USING(date)
+ORDER BY date
+)
+SELECT 
+    date,
+    new_users,
+    new_couriers,
+    total_users,
+    total_couriers,
+    ROUND((new_users::DECIMAL / LAG(new_users) OVER(ORDER BY date) * 100 - 100), 2) AS new_users_change,
+    ROUND((new_couriers::DECIMAL / LAG(new_couriers) OVER(ORDER BY date) * 100 - 100), 2) AS new_couriers_change,
+    ROUND((total_users::DECIMAL / LAG(total_users) OVER(ORDER BY date) * 100 - 100), 2) AS total_users_growth,
+    ROUND((total_couriers::DECIMAL / LAG(total_couriers) OVER(ORDER BY date) * 100 - 100), 2) AS total_couriers_growth
+FROM ct1
+
+-----------------------------------------------------------------------------------------------------------------------------------
+Для каждого дня, представленного в таблице user_actions, рассчитайте следующие показатели:
+
+Долю пользователей, сделавших в этот день всего один заказ, в общем количестве платящих пользователей.
+Долю пользователей, сделавших в этот день несколько заказов, в общем количестве платящих пользователей.
+Колонки с показателями назовите соответственно single_order_users_share, several_orders_users_share. 
+Колонку с датами назовите date. Все показатели с долями необходимо выразить в процентах. 
+При расчёте долей округляйте значения до двух знаков после запятой.
+Результат должен быть отсортирован по возрастанию даты.
+Поля в результирующей таблице: date, single_order_users_share, several_orders_users_share
+Пояснение: 
+Платящими  считаем тех пользователей, которые в данный день оформили (и не отменили) хотя бы один заказ.
+
+SELECT 
+    date, 
+    ROUND((COUNT(payments) FILTER(WHERE payments = 1) / total::DECIMAL * 100), 2) AS single_order_users_share,
+    ROUND((COUNT(payments) FILTER(WHERE payments > 1) / total::DECIMAL * 100), 2) AS several_orders_users_share
+FROM (
+    SELECT user_id, COUNT(user_id) AS payments, DATE(time) AS date, COUNT(user_id) OVER(PARTITION BY DATE(time)) AS total
+    FROM user_actions
+    WHERE order_id NOT IN (
+        SELECT order_id
+        FROM user_actions
+        WHERE action = 'cancel_order' )
+    GROUP BY date, user_id
+    ORDER BY date
+    ) t1
+GROUP BY date, total
+ORDER BY date
+
+-----------------------------------------------------------------------------------------------------------------------------------
