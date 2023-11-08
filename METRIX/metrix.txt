@@ -133,7 +133,8 @@ ORDER BY date
 Пояснение: 
 
 При расчёте числа первых заказов учитывайте, что у каждого пользователя может быть всего один первый заказ (что вполне логично).
-При расчёте числа заказов новых пользователей учитывайте, что в свой первый день каждый новый пользователь мог как совершить сразу несколько заказов, так и не совершить ни одного.
+При расчёте числа заказов новых пользователей учитывайте, что в свой первый день каждый новый пользователь мог как совершить сразу несколько заказов, 
+так и не совершить ни одного.
 Во всех случаях при расчёте числа заказов учитывайте только фактически совершённые заказы, отменённые заказы не учитывайте.
 
 WITH new_orders AS(
@@ -175,7 +176,8 @@ FROM (
     ) t4
 GROUP BY date
 )
-SELECT date, orders, first_orders, new_users_orders, ROUND((first_orders::DECIMAL / orders * 100), 2) AS first_orders_share, ROUND((new_users_orders::DECIMAL / orders * 100), 2) AS new_users_orders_share
+SELECT date, orders, first_orders, new_users_orders, ROUND((first_orders::DECIMAL / orders * 100), 2) AS first_orders_share, 
+ROUND((new_users_orders::DECIMAL / orders * 100), 2) AS new_users_orders_share
 FROM new_orders 
 LEFT JOIN total_orders USING(date)
 LEFT JOIN new_users USING(date)
@@ -194,7 +196,8 @@ LEFT JOIN new_users USING(date)
 
 Пояснение:
 Платящими по-прежнему считаем тех пользователей, которые в данный день оформили хотя бы один заказ, который в дальнейшем не был отменен.
-Курьеров считаем активными, если в данный день они приняли хотя бы один заказ, который был доставлен (возможно, уже на следующий день), или доставили любой заказ.
+Курьеров считаем активными, если в данный день они приняли хотя бы один заказ, который был доставлен (возможно, уже на следующий день), 
+или доставили любой заказ.
 В расчётах учитывайте только неотменённые заказы. 
 
 SELECT date, ROUND((paying_users::DECIMAL / active_couriers), 2) AS users_per_courier, ROUND((orders::DECIMAL / active_couriers), 2) AS orders_per_courier
@@ -220,6 +223,21 @@ LEFT JOIN
     GROUP BY date
     ) t3
 USING(date)
+ORDER BY date
+
+-----------------------------------------------------------------------------------------------------------------------------------
+На основе данных в таблице courier_actions для каждого дня рассчитайте, за сколько минут в среднем курьеры доставляли свои заказы.
+Колонку с показателем назовите minutes_to_deliver. Колонку с датами назовите date. 
+При расчёте среднего времени доставки округляйте количество минут до целых значений. 
+Учитывайте только доставленные заказы, отменённые заказы не учитывайте.
+Результирующая таблица должна быть отсортирована по возрастанию даты.
+Поля в результирующей таблице: date, minutes_to_deliver
+
+SELECT DATE(t1.time) AS date, AVG((EXTRACT(epoch from t2.time - t1.time)) / 60 )::INTEGER as minutes_to_deliver
+FROM (SELECT order_id, time FROM courier_actions WHERE action = 'accept_order') t1
+LEFT JOIN (SELECT order_id, time FROM courier_actions WHERE action = 'deliver_order') t2
+USING(order_id)
+GROUP BY date
 ORDER BY date
 
 -----------------------------------------------------------------------------------------------------------------------------------
