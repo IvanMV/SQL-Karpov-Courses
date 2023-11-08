@@ -180,3 +180,46 @@ FROM new_orders
 LEFT JOIN total_orders USING(date)
 LEFT JOIN new_users USING(date)
 
+-----------------------------------------------------------------------------------------------------------------------------------
+На основе данных в таблицах user_actions, courier_actions и orders для каждого дня рассчитайте следующие показатели:
+
+Число платящих пользователей на одного активного курьера.
+Число заказов на одного активного курьера.
+Колонки с показателями назовите соответственно users_per_courier и orders_per_courier. 
+Колонку с датами назовите date. При расчёте показателей округляйте значения до двух знаков после запятой.
+
+Результирующая таблица должна быть отсортирована по возрастанию даты.
+
+Поля в результирующей таблице: date, users_per_courier, orders_per_courier
+
+Пояснение:
+Платящими по-прежнему считаем тех пользователей, которые в данный день оформили хотя бы один заказ, который в дальнейшем не был отменен.
+Курьеров считаем активными, если в данный день они приняли хотя бы один заказ, который был доставлен (возможно, уже на следующий день), или доставили любой заказ.
+В расчётах учитывайте только неотменённые заказы. 
+
+SELECT date, ROUND((paying_users::DECIMAL / active_couriers), 2) AS users_per_courier, ROUND((orders::DECIMAL / active_couriers), 2) AS orders_per_courier
+FROM (
+    SELECT COUNT(DISTINCT user_id) AS paying_users, DATE(time) AS date
+    FROM user_actions
+    WHERE action = 'create_order' AND order_id NOT IN (SELECT order_id From user_actions WHERE action = 'cancel_order')
+    GROUP BY date
+    ) t1
+LEFT JOIN 
+    (
+    SELECT COUNT(DISTINCT courier_id) AS active_couriers, DATE(time) AS date
+    FROM courier_actions
+    WHERE order_id NOT IN (SELECT order_id From user_actions WHERE action = 'cancel_order')
+    GROUP BY date
+    ) t2
+USING(date)
+LEFT JOIN
+    (
+    SELECT COUNT(order_id) AS orders, DATE(creation_time) AS date
+    FROM orders
+    WHERE order_id NOT IN (SELECT order_id From user_actions WHERE action = 'cancel_order')
+    GROUP BY date
+    ) t3
+USING(date)
+ORDER BY date
+
+-----------------------------------------------------------------------------------------------------------------------------------
