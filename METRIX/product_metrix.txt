@@ -157,3 +157,40 @@ USING(date)
 ORDER BY date ;
 
 -----------------------------------------------------------------------------------------------------------------------------
+
+Для каждого товара, представленного в таблице products, за весь период времени в таблице orders рассчитайте следующие показатели:
+
+Суммарную выручку, полученную от продажи этого товара за весь период.
+Долю выручки от продажи этого товара в общей выручке, полученной за весь период.
+Колонки с показателями назовите соответственно revenue и share_in_revenue. Колонку с наименованиями товаров назовите product_name.
+
+Долю выручки с каждого товара необходимо выразить в процентах. При её расчёте округляйте значения до двух знаков после запятой.
+Товары, округлённая доля которых в выручке составляет менее 0.5%, объедините в общую группу с названием «ДРУГОЕ» (без кавычек), просуммировав округлённые доли этих товаров.
+Результат должен быть отсортирован по убыванию выручки от продажи товара.
+Поля в результирующей таблице: product_name, revenue, share_in_revenue
+
+WITH prices AS(
+SELECT name, t1.product_id, price
+FROM (
+    SELECT UNNEST(product_ids) AS product_id
+    FROM orders
+    WHERE order_id NOT IN (SELECT order_id FROM user_actions WHERE action = 'cancel_order')
+) t1
+JOIN products USING(product_id)
+),
+t2 AS(
+SELECT name AS product, SUM(price) AS revenue, ROUND((SUM(price) / (SELECT SUM(price) FROM prices) * 100), 2) AS share_in_revenue
+FROM prices
+GROUP BY name
+)
+SELECT 
+    CASE
+    WHEN share_in_revenue < 0.5 THEN 'ДРУГОЕ'
+    ELSE product
+    END AS product_name,
+    SUM(revenue) AS revenue, SUM(share_in_revenue) AS share_in_revenue
+FROM t2
+GROUP BY product_name
+ORDER BY revenue DESC
+
+-----------------------------------------------------------------------------------------------------------------------------
